@@ -3,6 +3,16 @@ defmodule Weather.Worker do
 
   @api_key "PUT-YOUR-API-KEY-HERE"
 
+  def loop do
+    receive do
+      {sender_pid, location} -> 
+        send(sender_pid, {:ok, temperature_of(location)})
+      _ ->
+        IO.puts "Don't know how to process this message."
+    end
+    loop
+  end
+
   @spec temperature_of(String.t) :: String.t
   def temperature_of(location) do
     location
