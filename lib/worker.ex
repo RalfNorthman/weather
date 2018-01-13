@@ -1,17 +1,44 @@
 defmodule Weather.Worker do
   @moduledoc false
 
+  use GenServer
+
   @api_key "PUT-YOUR-API-KEY-HERE"
 
-  def loop do
-    receive do
-      {sender_pid, location} -> 
-        send(sender_pid, {:ok, temperature_of(location)})
-      _ ->
-        IO.puts "Don't know how to process this message."
-    end
-    loop
+  ## Client API
+
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, :ok, opts)
   end
+
+  def get_temperature(pid, location) do
+    GenServer.call(pid, {:location, location})
+  end
+
+  def get_stats(pid) do
+    GenServer.call(pid, :get_stats)
+  end
+
+  ## Server Callbacks
+
+  def init(:ok) do
+    {:ok, %{}}
+  end
+
+  def handle_call({:location, location}, _from, stats) do
+    case temperature_of(location) do
+      {:ok, temp} ->
+        new_stats = update_stats(stats, location)
+        {:reply, "#{location}: #{temp}°C", new_stats}
+      _ -> 
+        {:reply, :error, stats}
+    end
+  end
+  def handle_call(:get_stats, _from, stats) do
+    {:reply, stats, stats}
+  end
+
+  ## Helper Functions
 
   @spec temperature_of(String.t) :: String.t
   def temperature_of(location) do
@@ -20,7 +47,6 @@ defmodule Weather.Worker do
     |> HTTPoison.get
     |> parse_response
     |> fetch_temperature
-    |> make_message(location)
   end
 
   defp make_url(location) do
@@ -28,7 +54,6 @@ defmodule Weather.Worker do
     "http://api.apixu.com/v1/current.json?key=#{@api_key}&q=#{location}"
   end
 
-  defp parse_response(httpoison_tuple)
   defp parse_response(
     {:ok, %HTTPoison.Response{body: body, status_code: 200}}) do
       Jason.decode body
@@ -43,8 +68,12 @@ defmodule Weather.Worker do
     |> Pipe.ok
   end
 
-  defp make_message(temp_tuple, location)
-  defp make_message({:ok, temp}, location), do: "#{location}: #{temp}°C" 
-  defp make_message(_, location),           do: "#{location} not found"  
+  defp update_stats(old_stats, location) do
+    if Map.has_key?(old_stats, location) do
+      Map.update!(old_stats, location, &(&1 + 1))
+    else
+      Map.put_new(old_stats, location, 1)
+    end
+  end
 
 end
