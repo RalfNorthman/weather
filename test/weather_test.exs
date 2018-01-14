@@ -1,28 +1,37 @@
 defmodule WeatherTest do
   use ExUnit.Case, async: false
 
-  setup_all do
+  setup do
     {:ok, pid} = start_supervised Weather.Worker
     %{pid: pid}
   end
 
-  test "Stats is empty right after server start.", %{pid: pid} do
-    assert Weather.Worker.get_stats(pid) == %{}
-  end
+  test "Testing server functionality", %{pid: pid} do
 
-  test "Returns temperature for real location.", %{pid: pid} do
+    assert Weather.Worker.get_stats(pid) == %{}
+
     assert Weather.Worker.get_temperature(pid, "Kvikkjokk") =~ 
       ~r/Kvikkjokk: -?\d+\.\d°C/
-  end
 
-  test "Stats updated after first call.", %{pid: pid} do
     assert Weather.Worker.get_stats(pid) == 
       %{"Kvikkjokk" => 1}
-  end
 
-  test "Returns 'not found' for imaginary location.", %{pid: pid} do
     assert Weather.Worker.get_temperature(pid, "Nangijala") == 
       "Nangijala not found"
+
+    assert Weather.Worker.get_stats(pid) == 
+      %{"Kvikkjokk" => 1}
+
+    assert Weather.Worker.get_temperature(pid, "Kvikkjokk") =~ 
+      ~r/Kvikkjokk: -?\d+\.\d°C/
+
+    assert Weather.Worker.get_stats(pid) == 
+      %{"Kvikkjokk" => 2}
+
+    Weather.Worker.reset_stats(pid)
+
+    assert Weather.Worker.get_stats(pid) == %{}
+
   end
 
 end

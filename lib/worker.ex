@@ -41,7 +41,7 @@ defmodule Weather.Worker do
   def handle_call(:get_stats, _from, stats) do
     {:reply, stats, stats}
   end
-  def handle_call(:reset_stats, _stats) do
+  def handle_cast(:reset_stats, _stats) do
     {:noreply, %{}}
   end
 
