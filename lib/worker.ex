@@ -19,6 +19,10 @@ defmodule Weather.Worker do
     GenServer.call(pid, :get_stats)
   end
 
+  def reset_stats(pid) do
+    GenServer.cast(pid, :reset_stats)
+  end
+
   ## Server Callbacks
 
   def init(:ok) do
@@ -31,11 +35,14 @@ defmodule Weather.Worker do
         new_stats = update_stats(stats, location)
         {:reply, "#{location}: #{temp}°C", new_stats}
       _ -> 
-        {:reply, :error, stats}
+        {:reply, "#{location} not found", stats}
     end
   end
   def handle_call(:get_stats, _from, stats) do
     {:reply, stats, stats}
+  end
+  def handle_call(:reset_stats, _stats) do
+    {:noreply, %{}}
   end
 
   ## Helper Functions
