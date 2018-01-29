@@ -3,8 +3,6 @@ defmodule Weather.Worker do
 
   use GenServer
 
-  @api_key "PUT-YOUR-API-KEY-HERE"
-
   ## Client API
 
   def start_link(opts \\ []) do
@@ -38,10 +36,12 @@ defmodule Weather.Worker do
       {:ok, temp} ->
         new_stats = update_stats(stats, location)
         {:reply, "#{location}: #{temp}°C", new_stats}
-      _ -> 
+
+      _ ->
         {:reply, "#{location} not found", stats}
     end
   end
+
   def handle_call(:get_stats, _from, stats) do
     {:reply, stats, stats}
   end
@@ -49,43 +49,52 @@ defmodule Weather.Worker do
   def handle_cast(:reset_stats, _stats) do
     {:noreply, %{}}
   end
+
   def handle_cast(:stop, stats) do
     {:stop, :normal, stats}
   end
 
   def terminate(reason, _stats) do
-    IO.puts "Server terminated because of #{inspect reason}."
+    IO.puts("Server terminated because of #{inspect(reason)}.")
     :ok
   end
 
   ## Helper Functions
 
-  @spec temperature_of(String.t) :: String.t
+  @spec temperature_of(String.t()) :: String.t()
   def temperature_of(location) do
     location
     |> make_url
-    |> HTTPoison.get
+    |> HTTPoison.get()
     |> parse_response
     |> fetch_temperature
   end
 
-  defp make_url(location) do
-    location = URI.encode location
-    "http://api.apixu.com/v1/current.json?key=#{@api_key}&q=#{location}"
+  def api_key() do
+    Application.fetch_env!(:weather, :apixu_api_key)
   end
 
-  defp parse_response(
-    {:ok, %HTTPoison.Response{body: body, status_code: 200}}) do
-      Jason.decode body
-    end
+  defp make_url(location) do
+    location = URI.encode(location)
+    "http://api.apixu.com/v1/current.json?key=#{api_key()}&q=#{location}"
+  end
+
+  defp parse_response({
+         :ok,
+         %HTTPoison.Response{body: body, status_code: 200}
+       }) do
+    Jason.decode(body)
+  end
+
   defp parse_response(_), do: :error
 
   defp fetch_temperature(decoded_json) do
     use OkJose
+
     decoded_json
     |> Map.fetch("current")
     |> Map.fetch("temp_c")
-    |> Pipe.ok
+    |> Pipe.ok()
   end
 
   defp update_stats(old_stats, location) do
@@ -95,5 +104,4 @@ defmodule Weather.Worker do
       Map.put_new(old_stats, location, 1)
     end
   end
-
 end
